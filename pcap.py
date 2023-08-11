@@ -17,12 +17,30 @@ packet_batch = pd.DataFrame(columns=columns) # type: ignore
 
 
 def packet_handler(packet):
+    
+    match packet["IP"].proto:
+        case "TCP":
+            sport = packet["TCP"].sport
+            dport = packet["TCP"].dport
+            swin = packet["TCP"].window
+            dwin = packet["TCP"].window
+        case "UDP":
+            sport = packet["UDP"].sport
+            dport = packet["UDP"].dport
+            swin = 0
+            dwin = 0
+        case _ :
+            sport = 0
+            dport = 0
+            swin = 0
+            dwin = 0
+
     global packet_batch
     features = {
         "srcip": packet["IP"].src,
-        "sport": packet["TCP"].sport if TCP in packet else packet["UDP"].sport if UDP in packet else 0,
+        "sport": sport,
         "dstip": packet["IP"].dst,
-        "dsport": packet["TCP"].dport if TCP in packet else packet["UDP"].dport if UDP in packet else 0,
+        "dsport": dport,
         "proto": packet["IP"].proto,
         "state": "unprocessed",
         "dur": "unprocessed",
@@ -37,8 +55,8 @@ def packet_handler(packet):
         "Dload": "unprocessed",
         "Spkts": "unprocessed",
         "Dpkts": "unprocessed",
-        "swin": packet["TCP"].window if TCP in packet else 0,
-        "dwin": packet["TCP"].window if TCP in packet else 0,
+        "swin": swin,
+        "dwin": dwin,
         "stcpb": "unprocessed",
         "dtcpb": "unprocessed",
         "smeansz": "unprocessed",
