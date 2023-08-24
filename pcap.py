@@ -1,93 +1,126 @@
-from scapy.all import sniff
-from scapy.layers.inet import TCP, UDP
 import pandas as pd
-
-columns = [
-    "srcip", "sport", "dstip", "dsport", "proto", "state", "dur", "sbytes",
-    "dbytes", "sttl", "dttl", "sloss", "dloss", "service", "Sload", "Dload",
-    "Spkts", "Dpkts", "swin", "dwin", "stcpb", "dtcpb", "smeansz", "dmeansz",
-    "trans_depth", "res_bdy_len", "Sjit", "Djit", "Stime", "Ltime", "Sintpkt",
-    "Dintpkt", "tcprtt", "synack", "ackdat", "is_sm_ips_ports", "ct_state_ttl",
-    "ct_flw_http_mthd", "is_ftp_login", "ct_ftp_cmd", "ct_srv_src", "ct_srv_dst",
-    "ct_dst_ltm", "ct_src_ltm", "ct_src_dport_ltm", "ct_dst_sport_ltm",
-    "ct_dst_src_ltm"
-]
-
-packet_batch = pd.DataFrame(columns=columns) # type: ignore
+import pyshark
+columns = ['id',
+           'srcip',
+           'sport',
+           'dstip',
+           'dsport',
+           'proto',
+           'state',
+           'dur',
+           'sbytes',
+           'dbytes',
+           'sttl',
+           'dttl',
+           'service',
+           'sload',
+           'dload',
+           'Spkts',
+           'Dpkts',
+           'stcpb',
+           'dtcpb',
+           'smean',
+           'dmean',
+           'trans_depth',
+           'sjit',
+           'djit',
+           'Stime',
+           'Ltime',
+           'sinpkt',
+           'dinpkt',
+           'tcprtt',
+           'synack',
+           'ackdat',
+           'ct_state_ttl',
+           'ct_flw_http_mthd',
+           'ct_srv_src',
+           'ct_srv_dst',
+           'ct_dst_ltm',
+           'ct_src_ltm']
+packet_batch = pd.DataFrame(columns=columns)  # type: ignore
 
 
 def packet_handler(packet):
-    
-    match packet["IP"].proto:
-        case "TCP":
-            sport = packet["TCP"].sport
-            dport = packet["TCP"].dport
-            swin = packet["TCP"].window
-            dwin = packet["TCP"].window
-        case "UDP":
-            sport = packet["UDP"].sport
-            dport = packet["UDP"].dport
-            swin = 0
-            dwin = 0
-        case _ :
-            sport = 0
-            dport = 0
-            swin = 0
-            dwin = 0
-
+    # Extract packet features
     global packet_batch
     features = {
-        "srcip": packet["IP"].src,
-        "sport": sport,
-        "dstip": packet["IP"].dst,
-        "dsport": dport,
-        "proto": packet["IP"].proto,
-        "state": "unprocessed",
-        "dur": "unprocessed",
-        "sbytes": packet["IP"].len,
-        "dbytes": "unprocessed",
-        "sttl": "unprocessed",
-        "dttl": "unprocessed",
-        "sloss": "unprocessed",
-        "dloss": "unprocessed",
-        "service": "unprocessed",
-        "Sload": "unprocessed",
-        "Dload": "unprocessed",
-        "Spkts": "unprocessed",
-        "Dpkts": "unprocessed",
-        "swin": swin,
-        "dwin": dwin,
-        "stcpb": "unprocessed",
-        "dtcpb": "unprocessed",
-        "smeansz": "unprocessed",
-        "dmeansz": "unprocessed",
-        "trans_depth": "unprocessed",
-        "res_bdy_len": "unprocessed",
-        "Sjit": "unprocessed",
-        "Djit": "unprocessed",
-        "Stime": "unprocessed",
-        "Ltime": "unprocessed",
-        "Sintpkt": "unprocessed",
-        "Dintpkt": "unprocessed",
-        "tcprtt": "unprocessed",
-        "synack": "unprocessed",
-        "ackdat": "unprocessed",
-        "is_sm_ips_ports": "unprocessed",
-        "ct_state_ttl": "unprocessed",
-        "ct_flw_http_mthd": "unprocessed",
-        "is_ftp_login": "unprocessed",
-        "ct_ftp_cmd": "unprocessed",
-        "ct_srv_src": "unprocessed",
-        "ct_srv_dst": "unprocessed",
-        "ct_dst_ltm": "unprocessed",
-        "ct_src_ltm": "unprocessed",
-        "ct_src_dport_ltm": "unprocessed",
-        "ct_dst_sport_ltm": "unprocessed",
-        "ct_dst_src_ltm": "unprocessed"
+        "id": 0,
+        "srcip": packet.ip.src,
+        "sport": packet["TCP"].srcport if "TCP" in packet else packet["UDP"].srcport if "UDP" in packet else 0,
+        "dstip": packet.ip.dst,
+        "dsport": packet["TCP"].dstport if "TCP" in packet else packet["UDP"].dstport if "UDP" in packet else 0,
+        "proto": packet.layers[1].layer_name,
+        "state": determine_state(packet["TCP"].flags) if "TCP" in packet else 0,
+        "dur": float(packet.frame_info.time_epoch),
+        "sbytes": packet.length,
+        "dbytes": 0,
+        "sttl": packet.ip.ttl if "IP" in packet else 0,
+        "dttl": 0,
+        "sloss": 0,
+        "dloss": 0,
+        "service": 0,
+        "Sload": 0,
+        "Dload": 0,
+        "Spkts": 0,
+        "Dpkts": 0,
+        "swin": 0,
+        "dwin": 0,
+        "stcpb": 0,
+        "dtcpb": 0,
+        "smeansz": 0,
+        "dmeansz": 0,
+        "trans_depth": 0,
+        "res_bdy_len": 0,
+        "Sjit": 0,
+        "Djit": 0,
+        "Stime": 0,
+        "Ltime": 0,
+        "Sintpkt": 0,
+        "Dintpkt": 0,
+        "tcprtt": 0,
+        "synack": 0,
+        "ackdat": 0,
+        "is_sm_ips_ports": 0,
+        "ct_state_ttl": 0,
+        "ct_flw_http_mthd": 0,
+        "ct_ftp_cmd": 0,
+        "ct_srv_src": 0,
+        "ct_srv_dst": 0,
+        "ct_dst_ltm": 0,
+        "ct_src_ltm": 0,
     }
-    packet_batch = packet_batch._append(features,ignore_index=True) #type: ignore
+    packet_batch = packet_batch._append(
+        features, ignore_index=True)  # type: ignore
 
     if len(packet_batch) == 100:
-        print(packet_batch)
+        print(packet_batch["dur"])
+        df = process_batch(packet_batch)
+        print(df["dur"])
 
-sniff(filter="ip", prn=packet_handler, count=100)
+
+def process_batch(batch):
+    processd_batch = batch
+    for index, row in batch.iterrows():
+        if row["Stime"] == 0:
+            row["Stime"] = calculate_duration(row)
+            process_batch.at[index, "dur"] = row["dur"]
+    return processd_batch
+
+
+def calculate_duration(packet):
+    # Calculate duration based on packet timestamps
+    if "Stime" in packet and "Ltime" in packet:
+        print(packet["Stime"])
+        return 0
+
+    return None
+
+
+def determine_state(flags):
+    return 0
+
+
+capture = pyshark.LiveCapture()
+capture.sniff(packet_count=100)
+for packet in capture.sniff_continuously(packet_count=100):
+    packet_handler(packet)

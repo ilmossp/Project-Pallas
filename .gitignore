@@ -2,3 +2,9 @@
 /.vscode
 /data_local
 /__pycache__
+/bin
+/.git
+/.gitignore
+/include
+/lib
+/lib64

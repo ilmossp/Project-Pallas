@@ -1,29 +1,21 @@
-from fastapi import FastAPI
 from joblib import load
-import pandas as pd
-from sklearn.calibration import LabelEncoder
-
-nominal_features = ['srcip', 'dstip', 'proto', 'state', 'service']
+from fastapi import FastAPI
+import subprocess
 
 
 
-#preprocesssing
-def preprocess(request):
-    data = pd.read_json(request)
-    data.dropna()
-    label_encoder = LabelEncoder()
-    for feature in nominal_features:
-        data[feature] = label_encoder.fit_transform(data[feature])
-        
+command = 'argus -w - | ra -N 100 -s ra -r captured.argus -s srid,saddr,daddr,state,sload,dload,stcpb,tcprtt,sjit,djit,trans,stcpb,dtcpb,smean,dmean,sport,dsport,proto,dur,sbytes,dbytes,sttl,dttl,Spkts,Dpkts -M xml > captured.xml'
+#subprocess.call(command, shell=True)
 
-#   Load models
-#random_forest = load('./models/random_forest_model.joblib')
-#gradient_boosting = load('./models/gradient_boosting_model.joblib')
 
-#  Create FastAPI app
+# Load the model
+
+model = load('models/random_forest_model _dropped.joblib') 
+
 app = FastAPI()
 
-#  Create predict endpoint
-@app.get("/")
-def root():
-    return {"message": "Hello ilyass"}
+
+@app.get('/')
+def index():
+    return {'message': 'This is the homepage of the API'}
+
