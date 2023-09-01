@@ -1,19 +1,19 @@
 from joblib import load
 from fastapi import FastAPI
-import subprocess
+from pcap import process_init, process_output
 
 
 
-command = 'argus -w - | ra -N 100 -s ra -r captured.argus -s srid,saddr,daddr,state,sload,dload,stcpb,tcprtt,sjit,djit,trans,stcpb,dtcpb,smean,dmean,sport,dsport,proto,dur,sbytes,dbytes,sttl,dttl,Spkts,Dpkts -M xml > captured.xml'
-#subprocess.call(command, shell=True)
+process = process_init()
+
+
+process_output(process.stdout)
 
 
 # Load the model
-
 model = load('models/random_forest_model _dropped.joblib') 
 
 app = FastAPI()
-
 
 @app.get('/')
 def index():
