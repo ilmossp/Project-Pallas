@@ -6,7 +6,7 @@ import datetime
 # Command 1: argus command that writes data to stdout
 cmd1 = ["sudo","argus", "-i", "wlo1", "-w", "-","|"]
 # Command 2: ra command that analyzes data and writes as XML to stdout
-cmd_string = "ra -s srcid,saddr,sport,daddr,dport,proto,state,dur,sbytes,dbytes,sttl,dttl,service,sload,dload,spkts,dpkts,stcpb,dtcpb,smeansz,dmeansz,trans,sjit,djit,stime,ltime,sintpkt,dintpkt,tcprtt,synack,ackdat -M xml "
+cmd_string = "ra -s srcid,saddr,sport,daddr,dport,proto,state,dur,sbytes,dbytes,sttl,dttl,service,sload,dload,spkts,dpkts,stcpb,dtcpb,smeansz,dmeansz,trans,sjit,djit,stime,ltime,sintpkt,dintpkt,tcprtt,synack,ackdat -M xml -n"
 cmd2 = cmd_string.split()
 # Start the first command
 
@@ -25,7 +25,6 @@ cmd2 = cmd_string.split()
 class LiveCapture:
     queue: list = []
     process: subprocess.Popen = None # type: ignore
-
     def start_Capture(self):
         # Start the first command
         argus_capture = subprocess.Popen(cmd1, stdout=subprocess.PIPE, text=True)
@@ -44,12 +43,20 @@ class LiveCapture:
                 break
             flow = self.process_output(line)
             if flow:
-                if self.queue.__len__() >= 100:
+                if len(self.queue) >= 100:
                     self.queue.pop(0)
+
                 #print(flow)
                 self.queue.append(flow)
         
     def process_flow(self, flow):
+        ct_state_ttl = 0
+        ct_flw_http_mthd=0
+        ct_srv_src =0
+        ct_srv_dst=0
+        ct_dst_ltm=0
+        ct_src_ltm=0
+
         service = 0
         try:
             if 'DstPort' in flow.attrib :
@@ -61,7 +68,18 @@ class LiveCapture:
         stime = datetime.datetime.fromisoformat(flow.attrib['StartTime']).timestamp()
         ltime = datetime.datetime.fromisoformat(flow.attrib['LastTime']).timestamp()
         
-        
+        for item in self.queue:
+            if item["service"] == service:
+                if item["srcip"] == flow.attrib["SrcAddr"]:
+                    ct_srv_src+=1
+                    ct_src_ltm+=1
+                if item["dstip"] == flow.attrib["DstAddr"]:
+                    ct_srv_dst+=1
+                    ct_dst_ltm+=1
+            if item["service"] == "http" or item["service"] == "https":
+                ct_flw_http_mthd+=1
+             
+
         flow_dict = {
             'id': flow.attrib['SrcId'] if 'SrcId' in flow.attrib else 0,
             'srcip': flow.attrib['SrcAddr'] if 'SrcAddr' in flow.attrib else 0,
@@ -94,8 +112,8 @@ class LiveCapture:
             'tcprtt': flow.attrib['TcpRtt'] if 'TcpRtt' in flow.attrib else 0,
             'synack': flow.attrib['SynAck'] if 'SynAck' in flow.attrib else 0,
             'ackdat': flow.attrib['AckDat'] if 'AckDat' in flow.attrib else 0,
-            'ct_state_ttl': flow.attrib['ct_state_ttl'] if 'ct_state_ttl' in flow.attrib else 0,
-            'ct_flw_http_mthd': flow.attrib['ct_flw_http_mthd'] if 'ct_flw_http_mthd' in flow.attrib else 0,
+            'ct_state_ttl': ct_state_ttl,
+            'ct_flw_http_mthd':0,
             'ct_srv_src': 0,
             'ct_srv_dst': 0,
             'ct_dst_ltm': 0,
@@ -110,4 +128,5 @@ class LiveCapture:
                 flow_dict = self.process_flow(root)    
                 return flow_dict
         except ET.ParseError as e:
-            print("Error parsing XML:", e)     
+            print("Error parsing XML:", e)
+        
