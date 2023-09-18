@@ -31,20 +31,22 @@ def upgrade() -> None:
             v_service text;
             v_src text;
             v_dst text;
-            v_ct_state_sttl integer;
+            v_ct_state_ttl integer;
+            v_ct_flw_http_mthd integer;
             v_ct_src_ltm integer;
             v_ct_srv_dst integer;
             v_ct_dst_ltm integer;
         BEGIN
             v_state := NEW.state;
-            Select count(*) into v_count from flows where 
-            state = v_state and sttl Between 250 and 255 and dttl between 250 and 255 and created_at < NEW.created_at
+            Select count(*) into v_ct_state_ttl from flows where 
+            state = v_state and sttl Between 250 and 255 and dttl between 250 and 255 
             Order by created_at desc limit 100;
             NEW.ct_state_ttl = v_ct_state_sttl;
             v_service := NEW.service;
             if v_service = 'http' then
-                Select count(*) into v_count from flows where
+                Select count(*) into v_ct_flw_http_mthd from flows where
                 service = v_service and created_at < NEW.created_at 
+                Group by creates_at
                 Order by created_at desc limit 100;
                 NEW.ct_flw_http_mthd = v_count;
             end if;
