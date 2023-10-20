@@ -4,8 +4,7 @@ from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from pcap import LiveCapture
 import threading
-import pandas as pd
-import array
+import copy
 
 liveCapture = LiveCapture()
 
@@ -41,7 +40,15 @@ def get_queue(response: Response):
     if len(liveCapture.queue) < 100:
         response.status_code = status.HTTP_202_ACCEPTED
         return {"message": "Queue still loading"}
-    return {"queue": liveCapture.queue}
+    df = liveCapture.preprocessBatch()
+    predictions = model.predict(df).tolist()
+    if len(predictions) == len(liveCapture.queue):
+        queue = copy.deepcopy(liveCapture.queue)
+        for item in queue:
+            item["Label"] = predictions[queue.index(item)]
+        return queue
+    else:
+        return {"message": "could not predict"}
 
 
 @app.get("/stop")
@@ -60,6 +67,6 @@ def get_dataframe():
         df = liveCapture.preprocessBatch()
         predictions = model.predict(df)
         return predictions.tolist()
-    except Exception as e:
+    except:
         traceback.print_exc()
-        return "fuck you "
+        return "an error has occured"
