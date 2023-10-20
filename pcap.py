@@ -2,7 +2,8 @@ import subprocess
 import xml.etree.ElementTree as ET
 from socket import getservbyport
 import datetime
-
+import pandas as pd
+from sklearn.preprocessing import LabelEncoder
 
 # Command 1: argus command that writes data to stdout
 cmd1 = ["sudo", "argus", "-i", "wlo1", "-w", "-", "|"]
@@ -90,9 +91,13 @@ class LiveCapture:
         flow_dict = {
             "id": flow.attrib["SrcId"] if "SrcId" in flow.attrib else 0,
             "srcip": flow.attrib["SrcAddr"] if "SrcAddr" in flow.attrib else 0,
-            "sport": int(flow.attrib["SrcPort"]) if "SrcPort" in flow.attrib else 0,
+            "sport": int(flow.attrib["SrcPort"])
+            if "SrcPort" in flow.attrib and isinstance(flow.attrib["SrcPort"], int)
+            else 0,
             "dstip": flow.attrib["DstAddr"] if "DstAddr" in flow.attrib else 0,
-            "dsport": int(flow.attrib["DstPort"]) if "DstPort" in flow.attrib else 0,
+            "dsport": int(flow.attrib["DstPort"])
+            if "DstPort" in flow.attrib and isinstance(flow.attrib["DstPort"], int)
+            else 0,
             "proto": flow.attrib["Proto"] if "Proto" in flow.attrib else 0,
             "state": flow.attrib["State"] if "State" in flow.attrib else 0,
             "dur": flow.attrib["Dur"] if "Dur" in flow.attrib else 0,
@@ -118,8 +123,8 @@ class LiveCapture:
             else 0,
             "Stime": stime,
             "Ltime": ltime,
-            "Sintpkt": flow.attrib["SIntPkt"] if "SIntPkt" in flow.attrib else 0,
-            "Dintpkt": flow.attrib["DIntPkt"] if "DIntPkt" in flow.attrib else 0,
+            "sinpkt": flow.attrib["SIntPkt"] if "SIntPkt" in flow.attrib else 0,
+            "dinpkt": flow.attrib["DIntPkt"] if "DIntPkt" in flow.attrib else 0,
             "tcprtt": flow.attrib["TcpRtt"] if "TcpRtt" in flow.attrib else 0,
             "synack": flow.attrib["SynAck"] if "SynAck" in flow.attrib else 0,
             "ackdat": flow.attrib["AckDat"] if "AckDat" in flow.attrib else 0,
@@ -141,3 +146,19 @@ class LiveCapture:
                 return flow_dict
         except ET.ParseError as e:
             print("Error parsing XML:", e)
+
+    def preprocessBatch(self):
+        columns_to_encode = ["srcip", "dstip", "proto", "state", "service"]
+        df = pd.DataFrame(self.queue)
+        labelEncoder = LabelEncoder()
+        conversion_dict = {
+            "srcip": str,
+            "dstip": str,
+            "proto": str,
+            "state": str,
+            "service": str,
+        }
+        df = df.astype(conversion_dict)
+        for column in columns_to_encode:
+            df[column] = labelEncoder.fit_transform(df[column])
+        return df
