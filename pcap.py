@@ -5,6 +5,8 @@ import datetime
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 
+from db import write_flows_to_database
+
 # Command 1: argus command that writes data to stdout
 cmd1 = ["sudo", "argus", "-i", "wlo1", "-w", "-", "|"]
 # Command 2: ra command that analyzes data and writes as XML to stdout
@@ -48,8 +50,8 @@ class LiveCapture:
             flow = self.process_output(line)
             if flow:
                 if len(self.queue) >= 100:
+                    write_flows_to_database(self.queue)
                     self.queue.pop(0)
-
                 # print(flow)
                 self.queue.append(flow)
 
@@ -61,7 +63,7 @@ class LiveCapture:
         ct_dst_ltm = 0
         ct_src_ltm = 0
 
-        service = 0
+        service = "no service"
         try:
             if "DstPort" in flow.attrib:
                 if (
@@ -72,7 +74,7 @@ class LiveCapture:
                         int(flow.attrib["DstPort"]), flow.attrib["Proto"].lower()
                     )
         except:
-            service = 0
+            service = "no service"
 
         stime = datetime.datetime.fromisoformat(flow.attrib["StartTime"]).timestamp()
         ltime = datetime.datetime.fromisoformat(flow.attrib["LastTime"]).timestamp()

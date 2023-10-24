@@ -2,6 +2,7 @@ import traceback
 from joblib import load
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
+from db import fetch_latest_flows
 from pcap import LiveCapture
 import threading
 import copy
@@ -12,7 +13,7 @@ liveCapture = LiveCapture()
 model = load("models/final_random_forest_model.joblib")
 app = FastAPI()
 
-origins = ["http://localhost:5173"]
+origins = ["http://localhost", "*"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -70,3 +71,9 @@ def get_dataframe():
     except:
         traceback.print_exc()
         return "an error has occured"
+
+
+@app.get("/allrecords")
+def get_all_records():
+    flows = fetch_latest_flows()
+    return flows
