@@ -32,12 +32,11 @@ class LiveCapture:
 
     def start_Capture(self):
         # Start the first command
-        argus_capture = subprocess.Popen(cmd1, stdout=subprocess.PIPE, text=True)
-        ra_analysis = subprocess.Popen(
-            cmd2, stdin=argus_capture.stdout, text=True, stdout=subprocess.PIPE
+        self.argus_process = subprocess.Popen(cmd1, stdout=subprocess.PIPE, text=True)
+        self.ra_process = subprocess.Popen(
+            cmd2, stdin=self.argus_process.stdout, text=True, stdout=subprocess.PIPE
         )
         print("Started Capture")
-        self.process = ra_analysis
 
     def stop_Capture(self):
         try:
@@ -49,7 +48,7 @@ class LiveCapture:
 
     def fill_queue(self):
         while True:
-            line = self.process.stdout.readline()  # type: ignore
+            line = self.ra_process.stdout.readline()  # type: ignore
             if not line:
                 break
             flow = self.process_output(line)

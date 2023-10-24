@@ -2,7 +2,7 @@ import traceback
 from joblib import load
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
-from db import fetch_latest_flows
+from db import fetch_latest_flows, fetch_stats
 from pcap import LiveCapture
 import threading
 from prediction import predict
@@ -55,3 +55,9 @@ def predict_from_json(body):
 def get_all_records():
     flows = fetch_latest_flows()
     return flows
+
+
+@app.get("/stats")
+def getStats():
+    stats = fetch_stats()
+    return stats
