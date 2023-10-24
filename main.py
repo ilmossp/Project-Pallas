@@ -38,7 +38,16 @@ def get_queue(response: Response):
     return {"len": len(liveCapture.queue), "queue": liveCapture.queue}
 
 
-@app.get("/stop")
+@app.post("/start")
+def start_Capture():
+    if liveCapture.status():
+        return "process already started"
+    else:
+        liveCapture.start_Capture()
+        return "process started successfully"
+
+
+@app.post("/stop")
 def stop_capture():
     if liveCapture.stop_Capture() == True:
         return "process stopped successfully"

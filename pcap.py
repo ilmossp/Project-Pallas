@@ -153,3 +153,6 @@ class LiveCapture:
                 return flow_dict
         except ET.ParseError as e:
             print("Error parsing XML:", e)
+
+    def status(self):
+        return self.ra_process.poll() is None and self.argus_process.poll() is None
