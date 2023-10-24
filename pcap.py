@@ -2,10 +2,10 @@ import subprocess
 import xml.etree.ElementTree as ET
 from socket import getservbyport
 import datetime
-import pandas as pd
-from sklearn.preprocessing import LabelEncoder
-
 from db import write_flows_to_database
+
+from prediction import predict
+
 
 # Command 1: argus command that writes data to stdout
 cmd1 = ["sudo", "argus", "-i", "wlo1", "-w", "-", "|"]
@@ -27,7 +27,8 @@ cmd2 = cmd_string.split()
 
 class LiveCapture:
     queue: list = []
-    process: subprocess.Popen = None  # type: ignore
+    ra_process: subprocess.Popen
+    argus_process: subprocess.Popen
 
     def start_Capture(self):
         # Start the first command
@@ -39,8 +40,12 @@ class LiveCapture:
         self.process = ra_analysis
 
     def stop_Capture(self):
-        self.process.terminate()
-        return True
+        try:
+            self.ra_process.terminate()
+            self.argus_process.terminate()
+            return True
+        except:
+            return False
 
     def fill_queue(self):
         while True:
@@ -50,8 +55,9 @@ class LiveCapture:
             flow = self.process_output(line)
             if flow:
                 if len(self.queue) >= 100:
-                    write_flows_to_database(self.queue)
-                    self.queue.pop(0)
+                    predicted_queue = predict(self.queue)
+                    write_flows_to_database(predicted_queue)
+                    self.queue = []
                 # print(flow)
                 self.queue.append(flow)
 
@@ -148,19 +154,3 @@ class LiveCapture:
                 return flow_dict
         except ET.ParseError as e:
             print("Error parsing XML:", e)
-
-    def preprocessBatch(self):
-        columns_to_encode = ["srcip", "dstip", "proto", "state", "service"]
-        df = pd.DataFrame(self.queue)
-        labelEncoder = LabelEncoder()
-        conversion_dict = {
-            "srcip": str,
-            "dstip": str,
-            "proto": str,
-            "state": str,
-            "service": str,
-        }
-        df = df.astype(conversion_dict)
-        for column in columns_to_encode:
-            df[column] = labelEncoder.fit_transform(df[column])
-        return df

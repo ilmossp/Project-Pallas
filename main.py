@@ -5,12 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from db import fetch_latest_flows
 from pcap import LiveCapture
 import threading
-import copy
+from prediction import predict
 
 liveCapture = LiveCapture()
-
-# Load the model
-model = load("models/final_random_forest_model.joblib")
 app = FastAPI()
 
 origins = ["http://localhost", "*"]
@@ -26,9 +23,9 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     global thread
-    liveCapture.start_Capture()
+    # liveCapture.start_Capture()
     thread = threading.Thread(target=liveCapture.fill_queue)
-    thread.start()
+    # thread.start()
 
 
 @app.get("/")
@@ -38,39 +35,20 @@ def index():
 
 @app.get("/queue")
 def get_queue(response: Response):
-    if len(liveCapture.queue) < 100:
-        response.status_code = status.HTTP_202_ACCEPTED
-        return {"message": "Queue still loading"}
-    df = liveCapture.preprocessBatch()
-    predictions = model.predict(df).tolist()
-    if len(predictions) == len(liveCapture.queue):
-        queue = copy.deepcopy(liveCapture.queue)
-        for item in queue:
-            item["Label"] = predictions[queue.index(item)]
-        return queue
-    else:
-        return {"message": "could not predict"}
+    return {"len": len(liveCapture.queue), "queue": liveCapture.queue}
 
 
 @app.get("/stop")
 def stop_capture():
-    return liveCapture.stop_Capture()
+    if liveCapture.stop_Capture() == True:
+        return "process stopped successfully"
+    else:
+        return "could not stop process, consider terminating the app"
 
 
 @app.get("/predict")
-def predict(body):
-    return {"prediction": model.predict(body)}
-
-
-@app.get("/dataframe")
-def get_dataframe():
-    try:
-        df = liveCapture.preprocessBatch()
-        predictions = model.predict(df)
-        return predictions.tolist()
-    except:
-        traceback.print_exc()
-        return "an error has occured"
+def predict_from_json(body):
+    return {"prediction": predict(body)}
 
 
 @app.get("/allrecords")

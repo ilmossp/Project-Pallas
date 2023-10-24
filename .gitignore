@@ -9,3 +9,6 @@
 /lib
 /lib64
 /.env
+/Pallas_test.db
+/share
+/pyvenv.cfg
