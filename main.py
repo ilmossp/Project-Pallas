@@ -23,9 +23,9 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     global thread
-    # liveCapture.start_Capture()
+    liveCapture.start_Capture()
     thread = threading.Thread(target=liveCapture.fill_queue)
-    # thread.start()
+    thread.start()
 
 
 @app.get("/")
