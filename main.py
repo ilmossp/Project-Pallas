@@ -1,6 +1,4 @@
-import traceback
-from joblib import load
-from fastapi import FastAPI, Response, status
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from db import fetch_latest_flows, fetch_stats
 from pcap import LiveCapture
@@ -39,8 +37,9 @@ def get_queue(response: Response):
 
 
 @app.post("/start")
-def start_Capture():
+def start_Capture(response: Response):
     if liveCapture.status():
+        response.status_code = 202
         return "process already started"
     else:
         liveCapture.start_Capture()
@@ -48,11 +47,16 @@ def start_Capture():
 
 
 @app.post("/stop")
-def stop_capture():
-    if liveCapture.stop_Capture() == True:
-        return "process stopped successfully"
+def stop_capture(response: Response):
+    if liveCapture.status():
+        if liveCapture.stop_Capture() == True:
+            return "Process Stopped Successfully"
+        else:
+            response.status_code = 500
+            return "Process Could Not Be Stopped"
     else:
-        return "could not stop process, consider terminating the app"
+        response.status_code = 202
+        return "Process already Stopped"
 
 
 @app.get("/predict")
@@ -70,3 +74,9 @@ def get_all_records():
 def getStats():
     stats = fetch_stats()
     return stats
+
+
+@app.get("/status")
+def getStatus():
+    status = liveCapture.status()
+    return {"status": status}
